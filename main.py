@@ -7,10 +7,9 @@ def REPL():
 
 
 def RunCode(filename):
-    interpeter = Machine(True)
-    print(interpeter.load_file(filename))
-    interpeter.execute(True)
-
+    interpeter = Machine(True,False)
+    interpeter.load_file(filename)
+    interpeter.execute()
 
 if __name__ == "__main__":
     if (len(sys.argv) == 1):

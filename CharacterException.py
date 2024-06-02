@@ -11,4 +11,4 @@ class CharacterException(Exception):
             message = "Error at: " + str(char_num) + " " + flavor_text
         else:
             message = "Error: " + flavor_text
-        super.__init__(message)
+        super().__init__(message)

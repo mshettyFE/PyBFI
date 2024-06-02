@@ -1,5 +1,5 @@
-from Tokens import TokenEncoding, Token
-import CharacterException
+from Tokens import TokenEncoding, Token, token_map
+from CharacterException import CharacterException
 from collections import deque
 from typing import List
 
@@ -9,7 +9,7 @@ data_size = 30000
 
 class Machine:
 
-    def __init__(self, afail_hard: bool = False):
+    def __init__(self, afail_hard: bool = False, a_verbose: bool = False):
         """
             virtual machine upon which Brainfuck is run on
             self.fail_hard: if an error occurs, the machine resets to some known state.
@@ -18,11 +18,20 @@ class Machine:
         global data_size
         self.program_loaded: bool = False  # If False, machine refuses to run
         self.fail_hard: bool = afail_hard
+        self.verbose = a_verbose
         self.instruction_pointer: int = 0  # Index into program memory
         self.program: List[Token] = []  # List of tokens of program to be run
-        self.data: List[int] = [0]*data_size  # Machine RAM in bytes
+        self.data: List[str] = [0]*data_size  # Machine RAM in bytes
         self.data_pointer: int = 0  # Throws error if out of data bounds
         self.bracket_map: dict[int, int] = {}  # maps bracket locations
+
+    def status(self):
+        print("prg_ptr: "+str(self.instruction_pointer))
+        print("cur_program: "+str(self.program[self.instruction_pointer]))
+        print("data_ptr: "+str(self.data_pointer))
+        print("data: "+str(self.data[self.data_pointer]))
+        print("bracket_map: "+str(self.bracket_map))
+        print("\n\n")
 
     def panic(self, expt: CharacterException):
         if (self.fail_hard):
@@ -92,7 +101,8 @@ class Machine:
                     else:
                         associated_bracket = bracket_stack.pop()  # Grab corresponding open brace
                         # Save two tuples that map the braces to each other
-                        self.add_to_mapping(associated_bracket, new_token)
+                        self.add_to_mapping(
+                            associated_bracket, closing_brace_token)
                         # Add to tally of tokens
                         self.program.append(closing_brace_token)
                 case _:
@@ -106,7 +116,7 @@ class Machine:
             self.panic(err)
 
         self.program_loaded = True  # Congrajlashins! Can exit now
-        return self.program_loaded
+        return self.program
 
     def load_file(self, file_name: str):
         with open(file_name, 'r') as f:
@@ -129,43 +139,44 @@ class Machine:
             data = input()
         return data[0]
 
-    def execute(self, verbose: bool = False):
+    def execute(self):
         if not (self.program_loaded):
             raise Exception("Program is currently not loaded")
         global data_size
         program_length = len(self.program)
         while ((self.instruction_pointer >= 0) and (self.instruction_pointer < program_length)):
             cur_token = self.program[self.instruction_pointer]
+#            print(cur_token, self.data_pointer, self.data[self.data_pointer])
             match cur_token.ttype:
                 case TokenEncoding.DATA_POINTER_RIGHT:
                     self.data_pointer += 1
                 case TokenEncoding.DATA_POINTER_LEFT:
                     self.data_pointer -= 1
                 case TokenEncoding.INCREMENT_BYTE:
-                    if self.check_data_pointer_validity(cur_token.location):
-                        self.data[self.data_pointer] += 1
+                    #                    if self.check_data_pointer_validity(cur_token.location):
+                    self.data[self.data_pointer] += 1
                 case TokenEncoding.DECREMENT_BYTE:
-                    if self.check_data_pointer_validity(cur_token.location):
-                        self.data[self.data_pointer] -= 1
+                    #                    if self.check_data_pointer_validity(cur_token.location):
+                    self.data[self.data_pointer] -= 1
                 case TokenEncoding.OUTPUT_BYTE:
-                    if self.check_data_pointer_validity(cur_token.location):
-                        out_byte = self.data[self.data_pointer]
-                        print(chr(out_byte), end='', flush=True)
+                    #                    if self.check_data_pointer_validity(cur_token.location):
+                    out_byte = self.data[self.data_pointer]
+                    print(str(out_byte), end='', flush=True)
                 case TokenEncoding.ACCEPT_INPUT:
                     byte_to_write = self.get_input()
-                    if self.check_data_pointer_validity(cur_token.location):
-                        self.data[self.data_pointer] = ord(byte_to_write)
+#                    if self.check_data_pointer_validity(cur_token.location):
+                    self.data[self.data_pointer] = byte_to_write
                 case TokenEncoding.LEFT_SQR_BRACE | TokenEncoding.RIGHT_SQR_BRACE:
-                    if self.check_data_pointer_validity(cur_token.location):
-                        cur_data = self.data[self.data_pointer]
-                        if (cur_data == 0):
-                            self.instruction_pointer = self.bracket_map[cur_token.location]
+                    #                    if self.check_data_pointer_validity(cur_token.location):
+                    cur_data = self.data[self.data_pointer]
+                    if (cur_data == 0):
+                        self.instruction_pointer = self.bracket_map[cur_token.location]
                 case _:
                     expt = CharacterException(
                         "Invalid token found: " + str(cur_token.ttype), cur_token.location)
                     self.panic(expt)
             self.instruction_pointer += 1
-        if (verbose):
+        if (self.verbose):
             print("\n\nProgram terminated Successfully")
         if (self.fail_hard):
             self.hard_reset()
