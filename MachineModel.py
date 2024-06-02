@@ -4,16 +4,20 @@ from collections import deque
 from typing import List
 
 
-data_size = 30, 000
+data_size = 30000
 
 
 class Machine:
-    """virtual machine upon which Brainfuck is run on"""
 
-    def __init__(self):
+    def __init__(self, afail_hard: bool = False):
+        """
+            virtual machine upon which Brainfuck is run on
+            self.fail_hard: if an error occurs, the machine resets to some known state.
+            Fail_hard denotes how the machine should fail. It either hard resets, or soft resets
+        """
         global data_size
         self.program_loaded: bool = False  # If False, machine refuses to run
-        self.fail_hard: bool = True
+        self.fail_hard: bool = afail_hard
         self.instruction_pointer: int = 0  # Index into program memory
         self.program: List[Token] = []  # List of tokens of program to be run
         self.data: List[int] = [0]*data_size  # Machine RAM in bytes
@@ -41,7 +45,8 @@ class Machine:
         self.data_pointer = 0
 
     def strip_code(self, program_bytes: str):
-        global accepted_tokens
+        accepted_tokens = ('>', '<', '+', '-', '.', ',',
+                           '[', ']')  # Valid characters
         return ''.join([byte for byte in program_bytes if byte in accepted_tokens])
 
     def add_to_mapping(self, left_token: Token, right_token: Token):
@@ -57,22 +62,22 @@ class Machine:
             match byte:
                 case '>':
                     self.program.append(
-                        Token(TokenEncoding.DATA_POINTER_RIGHT), index)
+                        Token(TokenEncoding.DATA_POINTER_RIGHT, index))
                 case '<':
                     self.program.append(
-                        Token(TokenEncoding.DATA_POINTER_LEFT), index)
+                        Token(TokenEncoding.DATA_POINTER_LEFT, index))
                 case '+':
                     self.program.append(
-                        Token(TokenEncoding.INCREMENT_BYTE), index)
+                        Token(TokenEncoding.INCREMENT_BYTE, index))
                 case '-':
                     self.program.append(
-                        Token(TokenEncoding.DECREMENT_BYTE), index)
+                        Token(TokenEncoding.DECREMENT_BYTE, index))
                 case '.':
                     self.program.append(
-                        Token(TokenEncoding.OUTPUT_BYTE), index)
+                        Token(TokenEncoding.OUTPUT_BYTE, index))
                 case ',':
                     self.program.append(
-                        Token(TokenEncoding.ACCEPT_INPUT), index)
+                        Token(TokenEncoding.ACCEPT_INPUT, index))
                 case '[':
                     new_token = Token(TokenEncoding.LEFT_SQR_BRACE, index)
                     bracket_stack.append(new_token)
@@ -145,7 +150,7 @@ class Machine:
                 case TokenEncoding.OUTPUT_BYTE:
                     if self.check_data_pointer_validity(cur_token.location):
                         out_byte = self.data[self.data_pointer]
-                        print(out_byte, end='', flush=True)
+                        print(chr(out_byte), end='', flush=True)
                 case TokenEncoding.ACCEPT_INPUT:
                     byte_to_write = self.get_input()
                     if self.check_data_pointer_validity(cur_token.location):
@@ -161,7 +166,7 @@ class Machine:
                     self.panic(expt)
             self.instruction_pointer += 1
         if (verbose):
-            print("Program terminated Successfully")
+            print("\n\nProgram terminated Successfully")
         if (self.fail_hard):
             self.hard_reset()
         else:

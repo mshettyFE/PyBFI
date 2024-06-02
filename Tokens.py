@@ -24,4 +24,3 @@ class Token:
     location: int
 
 
-accepted_chars = ('>', '<', '+', '-', '.', ',', '[', ']')  # Valid characters
