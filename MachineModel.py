@@ -108,14 +108,23 @@ class Machine:
             program_bytes = f.read()
         return self.load_string(program_bytes)
 
-    def check_data_pointer_validity(self) -> bool:
+    def check_data_pointer_validity(self, location) -> bool:
         if ((self.data_pointer < 0) or (self.data_pointer >= data_size)):
             expt = CharacterException(
-                "Data pointer out of bounds. Currently at " + str(self.data_pointer), cur_token.location)
+                "Data pointer out of bounds. Currently at " + str(self.data_pointer), location)
             self.panic(expt)
         return True
 
-    def execute(self):
+    def get_input(self) -> str:
+        """
+            Wait for user input. After hitting enter, grabs first character and discards the rest. Doesn't do empty input
+        """
+        data = ""
+        while (len(data) == 0):
+            data = input()
+        return data[0]
+
+    def execute(self, verbose: bool = False):
         if not (self.program_loaded):
             raise Exception("Program is currently not loaded")
         global data_size
@@ -128,20 +137,32 @@ class Machine:
                 case TokenEncoding.DATA_POINTER_LEFT:
                     self.data_pointer -= 1
                 case TokenEncoding.INCREMENT_BYTE:
-                    if self.check_data_pointer_validity():
+                    if self.check_data_pointer_validity(cur_token.location):
                         self.data[self.data_pointer] += 1
                 case TokenEncoding.DECREMENT_BYTE:
-                    if self.check_data_pointer_validity():
+                    if self.check_data_pointer_validity(cur_token.location):
                         self.data[self.data_pointer] -= 1
                 case TokenEncoding.OUTPUT_BYTE:
-                    if self.check_data_pointer_validity():
+                    if self.check_data_pointer_validity(cur_token.location):
                         out_byte = self.data[self.data_pointer]
                         print(out_byte, end='', flush=True)
                 case TokenEncoding.ACCEPT_INPUT:
-                case TokenEncoding.LEFT_SQR_BRACE:
-                case TokenEncoding.RIGHT_SQR_BRACE:
+                    byte_to_write = self.get_input()
+                    if self.check_data_pointer_validity(cur_token.location):
+                        self.data[self.data_pointer] = ord(byte_to_write)
+                case TokenEncoding.LEFT_SQR_BRACE | TokenEncoding.RIGHT_SQR_BRACE:
+                    if self.check_data_pointer_validity(cur_token.location):
+                        cur_data = self.data[self.data_pointer]
+                        if (cur_data == 0):
+                            self.instruction_pointer = self.bracket_map[cur_token.location]
                 case _:
                     expt = CharacterException(
                         "Invalid token found: " + str(cur_token.ttype), cur_token.location)
                     self.panic(expt)
             self.instruction_pointer += 1
+        if (verbose):
+            print("Program terminated Successfully")
+        if (self.fail_hard):
+            self.hard_reset()
+        else:
+            self.soft_reset()
