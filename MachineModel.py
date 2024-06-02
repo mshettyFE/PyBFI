@@ -66,8 +66,10 @@ class Machine:
         if (len(program_bytes) == 0):
             raise CharacterException("Code is empty. C'mon, do something...")
         bracket_stack = deque()
-        for index, byte in enumerate(program_bytes):
+        index = -1
+        for file_loc, byte in enumerate(program_bytes):
             # valid_characters: ('>', '<', '+', '-', '.', ',', '[', ']')
+            index = index + 1
             match byte:
                 case '>':
                     self.program.append(
@@ -106,6 +108,7 @@ class Machine:
                         # Add to tally of tokens
                         self.program.append(closing_brace_token)
                 case _:
+                    index = index- 1
                     continue  # Invalid character reached. Ignore. Note this includes whitespace!
         if (len(bracket_stack) != 0):
             tally = ""
@@ -146,7 +149,7 @@ class Machine:
         program_length = len(self.program)
         while ((self.instruction_pointer >= 0) and (self.instruction_pointer < program_length)):
             cur_token = self.program[self.instruction_pointer]
-#            print(cur_token, self.data_pointer, self.data[self.data_pointer])
+#                print(cur_token, self.data_pointer, self.program[self.data_pointer])
             match cur_token.ttype:
                 case TokenEncoding.DATA_POINTER_RIGHT:
                     self.data_pointer += 1
@@ -161,15 +164,22 @@ class Machine:
                 case TokenEncoding.OUTPUT_BYTE:
                     #                    if self.check_data_pointer_validity(cur_token.location):
                     out_byte = self.data[self.data_pointer]
-                    print(str(out_byte), end='', flush=True)
+                    try:
+                        print(chr(out_byte), end='', flush=True)
+                    except:
+                        pass
                 case TokenEncoding.ACCEPT_INPUT:
                     byte_to_write = self.get_input()
 #                    if self.check_data_pointer_validity(cur_token.location):
                     self.data[self.data_pointer] = byte_to_write
-                case TokenEncoding.LEFT_SQR_BRACE | TokenEncoding.RIGHT_SQR_BRACE:
+                case TokenEncoding.LEFT_SQR_BRACE:
                     #                    if self.check_data_pointer_validity(cur_token.location):
                     cur_data = self.data[self.data_pointer]
                     if (cur_data == 0):
+                        self.instruction_pointer = self.bracket_map[cur_token.location]
+                case TokenEncoding.RIGHT_SQR_BRACE:
+                    cur_data = self.data[self.data_pointer]
+                    if (cur_data != 0):
                         self.instruction_pointer = self.bracket_map[cur_token.location]
                 case _:
                     expt = CharacterException(
@@ -178,7 +188,3 @@ class Machine:
             self.instruction_pointer += 1
         if (self.verbose):
             print("\n\nProgram terminated Successfully")
-        if (self.fail_hard):
-            self.hard_reset()
-        else:
-            self.soft_reset()
