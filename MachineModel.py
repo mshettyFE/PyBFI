@@ -1,11 +1,10 @@
-from Tokens import TokenEncoding, Token, token_map
+from Tokens import TokenEncoding, Token
 from CharacterException import CharacterException
 from collections import deque
 from typing import List
 
 
 data_size = 30000
-
 
 class Machine:
 
@@ -23,9 +22,10 @@ class Machine:
         self.program: List[Token] = []  # List of tokens of program to be run
         self.data: List[str] = [0]*data_size  # Machine RAM in bytes
         self.data_pointer: int = 0  # Throws error if out of data bounds
-        self.bracket_map: dict[int, int] = {}  # maps bracket locations
+        self.bracket_map: dict[int, int] = {}  # maps bracket locations to each other
 
     def status(self):
+        """ debug functionality of current state"""
         print("prg_ptr: "+str(self.instruction_pointer))
         print("cur_program: "+str(self.program[self.instruction_pointer]))
         print("data_ptr: "+str(self.data_pointer))
@@ -34,6 +34,7 @@ class Machine:
         print("\n\n")
 
     def panic(self, expt: CharacterException):
+        """ Special error handling. Used to reset machine to state for further runs"""
         if (self.fail_hard):
             self.hard_reset()
         else:
@@ -54,11 +55,13 @@ class Machine:
         self.data_pointer = 0
 
     def strip_code(self, program_bytes: str):
+        """ Utility that strips out unnecessary characters"""
         accepted_tokens = ('>', '<', '+', '-', '.', ',',
                            '[', ']')  # Valid characters
         return ''.join([byte for byte in program_bytes if byte in accepted_tokens])
 
     def add_to_mapping(self, left_token: Token, right_token: Token):
+        """ Insert instruction pointer pairs into map"""
         self.bracket_map[left_token.location] = right_token.location
         self.bracket_map[right_token.location] = left_token.location
 
@@ -66,10 +69,10 @@ class Machine:
         if (len(program_bytes) == 0):
             raise CharacterException("Code is empty. C'mon, do something...")
         bracket_stack = deque()
-        index = -1
+        index = -1 # Keep track of current instruction pointer
         for file_loc, byte in enumerate(program_bytes):
             # valid_characters: ('>', '<', '+', '-', '.', ',', '[', ']')
-            index = index + 1
+            index = index + 1 # Preemtively increment instruction pointer. If valid, then use this
             match byte:
                 case '>':
                     self.program.append(
@@ -108,7 +111,7 @@ class Machine:
                         # Add to tally of tokens
                         self.program.append(closing_brace_token)
                 case _:
-                    index = index- 1
+                    index = index- 1 # Keep current instruction pointer in place
                     continue  # Invalid character reached. Ignore. Note this includes whitespace!
         if (len(bracket_stack) != 0):
             tally = ""
@@ -156,25 +159,25 @@ class Machine:
                 case TokenEncoding.DATA_POINTER_LEFT:
                     self.data_pointer -= 1
                 case TokenEncoding.INCREMENT_BYTE:
-                    #                    if self.check_data_pointer_validity(cur_token.location):
-                    self.data[self.data_pointer] += 1
+                    if self.check_data_pointer_validity(cur_token.location):
+                        self.data[self.data_pointer] += 1
                 case TokenEncoding.DECREMENT_BYTE:
-                    #                    if self.check_data_pointer_validity(cur_token.location):
-                    self.data[self.data_pointer] -= 1
+                    if self.check_data_pointer_validity(cur_token.location):
+                        self.data[self.data_pointer] -= 1
                 case TokenEncoding.OUTPUT_BYTE:
-                    #                    if self.check_data_pointer_validity(cur_token.location):
-                    out_byte = self.data[self.data_pointer]
+                    if self.check_data_pointer_validity(cur_token.location):
+                        out_byte = self.data[self.data_pointer]
                     try:
                         print(chr(out_byte), end='', flush=True)
                     except:
                         pass
                 case TokenEncoding.ACCEPT_INPUT:
                     byte_to_write = self.get_input()
-#                    if self.check_data_pointer_validity(cur_token.location):
-                    self.data[self.data_pointer] = byte_to_write
+                    if self.check_data_pointer_validity(cur_token.location):
+                        self.data[self.data_pointer] = byte_to_write
                 case TokenEncoding.LEFT_SQR_BRACE:
-                    #                    if self.check_data_pointer_validity(cur_token.location):
-                    cur_data = self.data[self.data_pointer]
+                    if self.check_data_pointer_validity(cur_token.location):
+                        cur_data = self.data[self.data_pointer]
                     if (cur_data == 0):
                         self.instruction_pointer = self.bracket_map[cur_token.location]
                 case TokenEncoding.RIGHT_SQR_BRACE:
